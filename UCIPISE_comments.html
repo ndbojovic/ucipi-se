@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IPS Pay">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="manifest" href="data:application/manifest+json,{'name':'ИПС Плаћање','short_name':'ИПСПаy','start_url':'.','display':'standalone','icons':[{'src':'icon.svg','sizes':'512x512','type':'image/svg+xml'}]}">
+
+    <title>УЧИПИ СЕ</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* CSS КОМЕНТАРИ: ПРИЛАГОЂАВАЊЕ ИЗГЛЕДА */
+
+        /* Спречава плаву боју приликом клика на дугмад на мобилним уређајима */
+        * { -webkit-tap-highlight-color: transparent; }
+
+        /* Подешавања за главни контејнер како би увек био центриран и пријатан за око */
+        #app {
+            transition: all 0.3s ease; /* Глатке транзиције при приказивању секција */
+        }
+
+        /* Специфична стилизација за QR canvas како би изгледао као картица */
+        #qr-canvas {
+            max-width: 100%;
+            height: auto !important;
+            background: white;
+        }
+
+        /* Стилизација поља за унос како би изгледала модерније на iOS и Android уређајима */
+        input {
+            appearance: none; /* Уклања системске стилове прегледача */
+            -webkit-appearance: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 font-sans text-slate-900">
+
+    <div id="app" class="bg-white rounded-2xl shadow-xl w-full max-w-md border border-slate-100 overflow-hidden">
+
+        <div class="relative h-32 w-full overflow-hidden shadow-inner">
+            <div class="absolute inset-0 bg-slate-900/40 z-10"></div>
+            <img src="header.webp"
+                 alt="IPS Header"
+                 class="absolute inset-0 w-full h-full object-cover grayscale-[20%] brightness-75">
+            <div class="absolute inset-0 z-20 flex items-center justify-center">
+                <h1 class="text-2xl font-black text-white uppercase tracking-[0.2em] drop-shadow-lg">УЧИПИ СЕ</h1>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div id="setup-section" class="hidden">
+                <p class="text-sm text-slate-500 mb-4 font-medium italic text-center text-xs">Иницијално подешавање:</p>
+                <div class="space-y-3">
+                    <input type="text" id="my-name" placeholder="Име и Презиме" onfocus="this.select()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500">
+                    <input type="text" id="my-address" placeholder="Адреса" onfocus="this.select()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500">
+                    <input type="text" id="my-account" placeholder="Број рачуна (160...)" inputmode="numeric" onfocus="this.select()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500">
+                    <button onclick="saveSetup()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-black transition mt-2 shadow-lg">Сачувај Податке</button>
+                </div>
+            </div>
+
+            <div id="generator-section" class="hidden">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 ml-1 uppercase tracking-wider">Платилац (Контакт)</label>
+                        <input type="text" id="recipient-name" placeholder="Име контакта" onfocus="this.select()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 ml-1 uppercase tracking-wider">Износ (RSD)</label>
+                        <input type="number" id="amount" value="0" step="0.01" inputmode="decimal" onfocus="this.select()" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-3xl font-black text-slate-800 outline-none focus:border-green-500">
+                    </div>
+                    <button onclick="generateQR()" class="w-full bg-green-600 text-white py-4 rounded-2xl hover:bg-green-700 font-bold text-lg transition shadow-lg shadow-green-100 active:scale-[0.98]">Генериши NBS QR</button>
+                </div>
+
+                <div id="qrcode-container" class="mt-8 pt-6 border-t border-dashed border-slate-200 hidden text-center">
+                    <div class="flex justify-center mb-4">
+                        <canvas id="qr-canvas" class="rounded-xl border border-slate-100 shadow-sm"></canvas>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <button id="share-btn" onclick="shareImage()" class="w-full text-sm font-bold text-blue-600 uppercase tracking-widest border-2 border-blue-500/10 py-3 rounded-xl bg-blue-50 active:bg-blue-100 transition">
+                            Пошаљи / Сачувај Слику
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="hardReset()" class="mt-8 mb-4 text-[10px] text-slate-400 hover:text-red-500 transition underline uppercase tracking-widest font-bold">
+        Обриши кеш и податке
+    </button>
+
+    <script>
+        const setupDiv = document.getElementById('setup-section');
+        const genDiv = document.getElementById('generator-section');
+        const qrContainer = document.getElementById('qrcode-container');
+        const canvas = document.getElementById('qr-canvas');
+
+        // Провера постојећих података приликом учитавања странице
+        window.onload = function() {
+            if (localStorage.getItem('ips_my_data')) {
+                const data = JSON.parse(localStorage.getItem('ips_my_data'));
+                document.getElementById('my-name').value = data.name || '';
+                document.getElementById('my-address').value = data.address || '';
+                document.getElementById('my-account').value = data.account || '';
+                genDiv.classList.remove('hidden'); // Прикажи главни панел
+            } else {
+                setupDiv.classList.remove('hidden'); // Прикажи форму за подешавање
+            }
+        };
+
+        // Функција за чување података примаоца у меморију телефона
+        function saveSetup() {
+            const name = document.getElementById('my-name').value;
+            const address = document.getElementById('my-address').value;
+            // Уклањање цртица из броја рачуна ради усклађености са стандардом
+            const account = document.getElementById('my-account').value.replace(/-/g, '').trim();
+            if (name && account) {
+                localStorage.setItem('ips_my_data', JSON.stringify({ name, address, account }));
+                location.reload();
+            } else { alert("Име и рачун су обавезни."); }
+        }
+
+        // ГЛАВНА ЛОГИКА: Формирање стринга по НБС стандарду и цртање кода
+        function generateQR() {
+            const myData = JSON.parse(localStorage.getItem('ips_my_data'));
+            const recipient = document.getElementById('recipient-name').value || "Уплатилац";
+            const amountVal = document.getElementById('amount').value || "0";
+
+            qrContainer.classList.remove('hidden');
+            // Форматирање износа са запетом и две децимале (нпр. RSD100,00)
+            const rsdAmount = "RSD" + parseFloat(amountVal).toFixed(2).replace('.', ',');
+
+            // Формирање NBS стринга (K:PR=Платни налог, V:01=Верзија, C:1=UTF-8 енкодирање)
+            const rawString = `K:PR|V:01|C:1|R:${myData.account}|N:${myData.name}|I:${rsdAmount}|SF:289|S:Уплата од ${recipient}`;
+
+            // Осигуравање UTF-8 компатибилности за ћириличне знакове
+            const encodedString = unescape(encodeURIComponent(rawString));
+
+            // Подешавање QRious библиотеке
+            const qrSize = 400;
+            const qr = new QRious({
+                element: canvas,
+                value: encodedString,
+                size: qrSize,
+                level: 'H' // Висок степен исправљања грешака (High)
+            });
+
+            // Додавање белог поља и текста преко QR кода ради боље прегледности за корисника
+            const ctx = canvas.getContext('2d');
+            const center = qrSize / 2;
+
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.roundRect(center - 85, center - 50, 170, 100, 15);
+            ctx.fill();
+            ctx.strokeStyle = "#f1f5f9";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = "#000000";
+            ctx.textAlign = "center";
+            ctx.font = "bold 24px Arial";
+            ctx.fillText(parseFloat(amountVal).toLocaleString('sr-RS') + " RSD", center, center - 5);
+            ctx.font = "normal 16px Arial";
+            const displayName = recipient.length > 15 ? recipient.substring(0, 13) + '..' : recipient;
+            ctx.fillText(displayName, center, center + 25);
+
+            // Аутоматско скроловање до генерисаног кода
+            setTimeout(() => { qrContainer.scrollIntoView({ behavior: 'smooth' }); }, 150);
+        }
+
+        // Коришћење системске "Share" опције за слање слике преко Вајбера, WhatsApp-а итд.
+        async function shareImage() {
+            const dataUrl = canvas.toDataURL("image/png");
+            const blob = await (await fetch(dataUrl)).blob();
+            const file = new File([blob], "IPS_QR.png", { type: "image/png" });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'ИПС QR',
+                        text: 'НБС Инстант Плаћање'
+                    });
+                } catch (error) { console.error(error); }
+            } else {
+                // Алтернатива: директно преузимање ако систем не подржава Share API
+                const link = document.createElement('a');
+                link.download = 'IPS_QR.png';
+                link.href = dataUrl;
+                link.click();
+            }
+        }
+
+        // Функција за брисање свих локално сачуваних података
+        function hardReset() {
+            if(confirm("Обриши све податке?")) {
+                localStorage.removeItem('ips_my_data');
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
