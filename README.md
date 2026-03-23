@@ -1,4 +1,4 @@
-# ucipi-se
+# УЧИПИ СЕ (ucipi se)
 QR code bill splitting payment
 
 
