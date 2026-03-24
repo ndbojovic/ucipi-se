@@ -1,8 +1,10 @@
 # УЧИПИ СЕ (ucipi se)
-QR code bill splitting payment
+QR code bill splitting payment - Serbia
 
 
-The app simplifies the process of getting paid back by friends, family, or customers. Instead of exchanging IBANs (bank account numbers), you use the app to create a QR code that can be scanned using banking app and IPS system.
+The app simplifies the process of getting paid back by friends, family, or customers. Instead of exchanging IBANs (bank account numbers), you use the app to create a QR code that can be scanned using banking app and IPS (Instant Payment System).
+
+Initial configuration: Enter your name, address and bank account number. This data is stored locally in browser cache.
 
 Create: You enter the amount and who it’s for 
 
